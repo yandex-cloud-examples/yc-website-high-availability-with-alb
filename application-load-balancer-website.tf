@@ -81,7 +81,7 @@ resource "yandex_vpc_subnet" "subnet-3" {
   v4_cidr_blocks = ["192.168.3.0/24"]
 }
 
-# Создание групп безопасности alb-sg
+# Создание групп безопасности
 
 resource "yandex_vpc_security_group" "alb-sg" {
   name        = "alb-sg"
@@ -116,8 +116,6 @@ resource "yandex_vpc_security_group" "alb-sg" {
     port              = 30080
   }
 }
-
-# Создание групп безопасности alb-vm-sg
 
 resource "yandex_vpc_security_group" "alb-vm-sg" {
   name        = "alb-vm-sg"
