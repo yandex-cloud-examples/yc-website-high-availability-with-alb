@@ -1,7 +1,6 @@
 # Объявление переменных для конфиденциальных параметров
 
 variable "folder_id" {
-  description = "ID of the folder where resources will be created"
   type = string
 }
 
@@ -12,10 +11,6 @@ variable "vm_user" {
 variable "ssh_key_path" {
   type      = string
   sensitive = true
-}
-
-variable "dns_zone" {
-  type      = string
 }
 
 variable "domain" {
@@ -47,6 +42,8 @@ provider "yandex" {
   zone = "ru-central1-a"
 }
 
+# Создание сервисного аккаунта и назначение прав
+
 resource "yandex_iam_service_account" "ig-sa" {
   name = local.sa_name
 }
@@ -56,6 +53,8 @@ resource "yandex_resourcemanager_folder_iam_member" "editor" {
   role      = "editor"
   member    = "serviceAccount:${yandex_iam_service_account.ig-sa.id}"
 }
+
+# Создание облачной сети и подсетей
 
 resource "yandex_vpc_network" "network-1" {
   name = local.network_name
@@ -77,10 +76,12 @@ resource "yandex_vpc_subnet" "subnet-2" {
 
 resource "yandex_vpc_subnet" "subnet-3" {
   name           = local.subnet_name3
-  zone           = "ru-central1-c"
+  zone           = "ru-central1-d"
   network_id     = yandex_vpc_network.network-1.id
   v4_cidr_blocks = ["192.168.3.0/24"]
 }
+
+# Создание групп безопасности
 
 resource "yandex_vpc_security_group" "alb-sg" {
   name        = "alb-sg"
@@ -135,6 +136,8 @@ resource "yandex_vpc_security_group" "alb-vm-sg" {
   }
 }
 
+# Создание группы ВМ для сайта
+
 resource "yandex_compute_image" "lemp" {
   source_family = "lemp"
 }
@@ -180,7 +183,7 @@ resource "yandex_compute_instance_group" "alb-vm-group" {
   }
 
   allocation_policy {
-    zones = ["ru-central1-a", "ru-central1-b", "ru-central1-c"]
+    zones = ["ru-central1-a", "ru-central1-b", "ru-central1-d"]
   }
 
   deploy_policy {
@@ -193,9 +196,10 @@ resource "yandex_compute_instance_group" "alb-vm-group" {
   }
 }
 
+# Создание группы бэкендов
+
 resource "yandex_alb_backend_group" "alb-bg" {
   name                     = "alb-bg"
-
   http_backend {
     name                   = "backend-1"
     port                   = 80
@@ -210,6 +214,8 @@ resource "yandex_alb_backend_group" "alb-bg" {
     }
   }
 }
+
+# Создание HTTP-роутера и виртуального хоста
 
 resource "yandex_alb_http_router" "alb-router" {
   name   = "alb-router"
@@ -229,6 +235,8 @@ resource "yandex_alb_virtual_host" "alb-host" {
   }
 }
 
+# Создание L7-балансировщика
+
 resource "yandex_alb_load_balancer" "alb-1" {
   name               = "alb-1"
   network_id         = yandex_vpc_network.network-1.id
@@ -246,7 +254,7 @@ resource "yandex_alb_load_balancer" "alb-1" {
     }
 
     location {
-      zone_id   = "ru-central1-c"
+      zone_id   = "ru-central1-d"
       subnet_id = yandex_vpc_subnet.subnet-3.id
     }
   }
@@ -268,12 +276,16 @@ resource "yandex_alb_load_balancer" "alb-1" {
   }
 }
 
+# Создание DNS-зоны
+
 resource "yandex_dns_zone" "alb-zone" {
   name        = "alb-zone"
   description = "Public zone"
   zone        = "${var.domain}."
   public      = true
 }
+
+# Создание ресурсных записей в DNS-зоне
 
 resource "yandex_dns_recordset" "rs-1" {
   zone_id = yandex_dns_zone.alb-zone.id
